@@ -5,30 +5,24 @@ import PetCard from './PetCard.jsx';
 import Modal from './Modal.jsx';
 import Spinner from './Spinner.jsx'; // Assuming Spinner.jsx exists
 
-const API_URL = "http://localhost:8000/pets/random";
+const API_BASE_URL = "http://localhost:8000";
 
 function App() {
   const [pets, setPets] = useState([]);
-  const [filteredPets, setFilteredPets] = useState([]);
-  const [categories, setCategories] = useState([]);
-  
+  const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
   const [isAdoptModalOpen, setAdoptModalOpen] = useState(false);
+  const [currentView, setCurrentView] = useState('home'); // 'home' or 'favorites'
+  const [viewedPet, setViewedPet] = useState(null); // For viewing a single pet image
 
   useEffect(() => {
-    const fetchPets = async () => {
+    const fetchInitialPets = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        const response = await axios.get(API_URL);
+        const response = await axios.get(`${API_BASE_URL}/pets/random`);
         setPets(response.data);
-        setFilteredPets(response.data);
-        // Dynamically create categories from data
-        const uniqueCategories = [...new Set(response.data.map(pet => pet.category))];
-        setCategories(uniqueCategories);
       } catch (error) {
         console.error("Failed to fetch pets:", error);
         setError("Could not load pet data. Please try again later.");
@@ -36,75 +30,103 @@ function App() {
         setIsLoading(false);
       }
     };
-    fetchPets();
+    fetchInitialPets();
   }, []);
 
-  // Filtering logic
-  useEffect(() => {
-    let result = pets;
-
-    // Filter by search term
-    if (searchTerm) {
-      result = result.filter(pet => 
-        pet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pet.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const fetchFavorites = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/pets/favorites`);
+      setFavorites(response.data);
+    } catch (error) {
+      console.error("Failed to fetch favorites:", error);
+      setError("Could not load your favorite pets.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      result = result.filter(pet => pet.category === selectedCategory);
-    }
-
-    setFilteredPets(result);
-  }, [searchTerm, selectedCategory, pets]);
+  };
 
   const handleAdoptClick = () => {
     setAdoptModalOpen(true);
   };
 
+  const handleFavoriteClick = async (petToFavorite) => {
+    try {
+      const payload = {
+        image_url: petToFavorite.image_url,
+        animal_type: petToFavorite.animal_type,
+      };
+      await axios.post(`${API_BASE_URL}/pets/favorites`, payload);
+      alert(`${petToFavorite.animal_type} added to your favorites!`);
+      // Optimistically add to favorites list if on that view
+      if (currentView === 'favorites') {
+        // The backend returns the created pet, but for simplicity we'll just refetch
+        fetchFavorites();
+      }
+    } catch (error) {
+      console.error("Failed to favorite pet:", error);
+      if (error.response && error.response.status === 409) {
+        alert('You have already favorited this pet!');
+      } else {
+        alert('Failed to add pet to favorites. Please try again.');
+      }
+    }
+  };
+
+  const handleNavClick = (view) => {
+    setCurrentView(view);
+    if (view === 'favorites') {
+      fetchFavorites();
+    }
+  };
+
+  const handleImageClick = (pet) => {
+    setViewedPet(pet);
+  };
+
   return (
     <div className="bg-white min-h-screen">
-      <Navbar />
+      <Navbar onNavClick={handleNavClick} />
       
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-apc-black mb-8 text-center">
-          Find Your New Best Friend
-        </h1>
-
-        {/* Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <input
-            type="text"
-            placeholder="Search by name or keyword..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-grow p-2 border border-apc-light-grey rounded-md focus:ring-2 focus:ring-apc-warm-yellow focus:outline-none"
-          />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="p-2 border border-apc-light-grey rounded-md focus:ring-2 focus:ring-apc-warm-yellow focus:outline-none"
-          >
-            <option value="all">All Categories</option>
-            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-        </div>
-
         {isLoading ? <Spinner /> : error ? (
           <p className="text-center text-apc-red">{error}</p>
-        ) : filteredPets.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredPets.map(pet => (
+        ) : currentView === 'home' ? (
+          <>
+            <h1 className="text-3xl md:text-4xl font-bold text-apc-black mb-8 text-center">Find Your New Best Friend</h1>
+            <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8">
+              {pets.map(pet => (
                 <PetCard 
-                  key={pet._id} 
+                  className="break-inside-avoid"
+                  key={pet.image_url}
                   pet={pet} 
                   onAdoptClick={handleAdoptClick} 
+                  onFavoriteClick={handleFavoriteClick}
+                  onImageClick={handleImageClick}
                 />
               ))}
             </div>
-        ) : (
-          <p className="text-center text-apc-dark-grey text-lg">No results found. Try adjusting your search.</p>
+          </>
+        ) : ( // 'favorites' view
+          <>
+            <h1 className="text-3xl md:text-4xl font-bold text-apc-black mb-8 text-center">Your Favorite Pets</h1>
+            {favorites.length > 0 ? (
+              <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8">
+                {favorites.map(pet => (
+                  <PetCard 
+                    className="break-inside-avoid" 
+                    key={pet.id} 
+                    pet={pet} 
+                    onAdoptClick={handleAdoptClick} 
+                    onImageClick={handleImageClick}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-apc-dark-grey text-lg">You haven't saved any favorites yet!</p>
+            )}
+          </>
         )}
       </main>
 
@@ -116,6 +138,15 @@ function App() {
             +233-55-123-4567
           </p>
         </div>
+      </Modal>
+
+      <Modal isOpen={!!viewedPet} onClose={() => setViewedPet(null)}>
+        {viewedPet && (
+          <div className="text-center">
+            <img src={viewedPet.image_url} alt={viewedPet.animal_type} className="w-full h-auto rounded-lg mb-4 max-h-[80vh]" />
+            <p className="text-xl font-bold capitalize text-apc-black">{viewedPet.animal_type}</p>
+          </div>
+        )}
       </Modal>
     </div>
   );

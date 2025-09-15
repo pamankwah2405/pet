@@ -131,7 +131,7 @@ async def get_random_pets():
     """
     async with httpx.AsyncClient() as session:
         tasks = []
-        for _ in range(5):
+        for _ in range(10):
             tasks.append(fetch_pet(session, DOG_API_URL, "dog"))
             tasks.append(fetch_pet(session, CAT_API_URL, "cat"))
         
@@ -147,13 +147,19 @@ async def get_random_pets():
 @app.post("/pets/favorites", response_model=PetInDB, status_code=201, summary="Save a Favorite Pet")
 async def save_favorite_pet(pet: PetCreate):
     """
-    Saves a new pet to the 'favorites' list in the database.
+    Saves a new pet to the 'favorites' list in the database if it doesn't already exist.
     Initializes votes to 0.
     """
+    # Check if a pet with the same image_url already exists
+    existing_pet = await db["pets"].find_one({"image_url": pet.image_url})
+    if existing_pet:
+        raise HTTPException(status_code=409, detail="This pet has already been favorited.")
+
     pet_doc = pet.dict()
     pet_doc["votes"] = 0
     result = await db["pets"].insert_one(pet_doc)
     created_pet = await db["pets"].find_one({"_id": result.inserted_id})
+    
     return created_pet
 
 @app.get("/pets/favorites", response_model=List[PetInDB], summary="List All Favorite Pets")

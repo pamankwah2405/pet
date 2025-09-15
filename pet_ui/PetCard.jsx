@@ -1,56 +1,30 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
-const PetCard = ({ pet, onAdoptClick }) => {
-  const placeholderImage = "https://images.unsplash.com/photo-1583511655826-05700d52f4d9?w=400";
-
-  const cardVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } },
-    hover: { scale: 1.03, y: -5, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", transition: { type: 'spring', stiffness: 300, damping: 15 } },
-  };
-
-  // A map to give different colors to different categories
-  const categoryColors = {
-    'Dog': 'bg-blue-100 text-blue-800',
-    'Cat': 'bg-green-100 text-green-800',
-    'Rabbit': 'bg-pink-100 text-pink-800',
-    'Parrot': 'bg-yellow-100 text-yellow-800',
-    'Bird': 'bg-sky-100 text-sky-800',
-    'Fish': 'bg-indigo-100 text-indigo-800',
-    'Hamster': 'bg-orange-100 text-orange-800',
-    'Turtle': 'bg-teal-100 text-teal-800',
-    'default': 'bg-gray-100 text-gray-800',
-  };
-
+const PetCard = ({ pet, onAdoptClick, onFavoriteClick, onImageClick, className }) => {
   return (
-    <motion.div
-      variants={cardVariants}
-      // The parent `motion.div` in App.jsx will orchestrate the `hidden` and `visible` states
-      whileHover="hover"
-      className="bg-white rounded-xl shadow-md overflow-hidden h-[450px] flex flex-col cursor-default"
-    >
+    <div className={`relative rounded-lg overflow-hidden shadow-lg group ${className}`}>
       <img 
-        src={pet.image_url || placeholderImage} 
-        alt={pet.title} 
-        className="w-full h-56 object-cover"
+        src={pet.image_url} 
+        alt={pet.animal_type} 
+        className="w-full h-full object-cover cursor-pointer"
+        onClick={() => onImageClick && onImageClick(pet)}
       />
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-bold text-apc-black">{pet.title}</h3>
-          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${categoryColors[pet.category] || categoryColors.default}`}>
-            {pet.category}
-          </span>
-        </div>
-        <p className="text-apc-dark-grey text-base flex-grow">{pet.description}</p>
-          <button 
-            onClick={onAdoptClick}
-            className="mt-4 w-full bg-apc-red text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors"
-          >
-            Adopt Me ❤️
-          </button>
+      {/* Favorite Button */}
+      {onFavoriteClick && (
+        <button onClick={() => onFavoriteClick(pet)} title="Add to favorites" className="absolute top-2 right-2 bg-black/30 p-2 rounded-full text-white hover:text-apc-red hover:bg-white/50 transition-colors duration-300">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
+        </button>
+      )}
+      {/* Gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      
+      <div className="absolute bottom-0 left-0 p-4 w-full flex justify-between items-end">
+        <p className="text-white font-bold text-lg capitalize">{pet.animal_type}</p>
+        <button onClick={onAdoptClick} className="bg-apc-red text-white px-3 py-1 rounded-md text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          Adopt Me
+        </button>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
